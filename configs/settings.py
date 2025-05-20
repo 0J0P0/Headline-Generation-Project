@@ -1,7 +1,7 @@
 from pathlib import Path
 
 
-PROJ_DIR = Path.cwd().parent
+PROJ_DIR = Path.cwd()
 
 DATA_DIR = PROJ_DIR / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
