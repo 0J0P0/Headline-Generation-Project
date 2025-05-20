@@ -1,6 +1,5 @@
 import torch
 from torch.utils.data import DataLoader
-from transformers import AdamW
 from tqdm import tqdm
 
 from src.model_loader import load_bart_model
@@ -25,7 +24,7 @@ def train():
     dataset = HeadlineDataset(PROCESSED_DATA_DIR / "train.csv", tokenizer)
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
-    optimizer = AdamW(model.parameters(), lr=LEARNING_RATE)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE)
 
     model.train()
     for epoch in range(EPOCHS):
