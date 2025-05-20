@@ -2,6 +2,6 @@
 
 echo "Starting headline generation training..."
 
-python3 -m src/train.py
+PYTHONPATH=$(pwd) python src/train.py
 
 echo "Training finished!"
