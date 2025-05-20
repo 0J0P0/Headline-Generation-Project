@@ -3,7 +3,7 @@ from torch.utils.data import DataLoader
 from transformers import AdamW
 from tqdm import tqdm
 
-from src.model_bart import load_bart_model
+from src.model_loader import load_bart_model
 from src.data_loader import HeadlineDataset
 from configs.settings import MODEL_DIR, PROCESSED_DATA_DIR
 
