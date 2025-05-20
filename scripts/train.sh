@@ -2,6 +2,6 @@
 
 echo "Starting headline generation training..."
 
-python3 src/train.py
+python3 -m src/train.py
 
 echo "Training finished!"
