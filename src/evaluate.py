@@ -14,8 +14,6 @@ from nltk.tokenize import word_tokenize
 from rouge_score import rouge_scorer
 from bert_score import score as bert_score
 
-BATCH_SIZE = 32
-
 
 def evaluate():
     # tokenizer = BartTokenizer.from_pretrained(PROCESSED_DATA_DIR/"bart/")
@@ -26,8 +24,8 @@ def evaluate():
 
     # dataset = HeadlineDataset(MODEL_DIR / "val.csv", tokenizer)
     dataset = HeadlineDataset(PROCESSED_DATA_DIR / "val.csv", tokenizer)
-    summaries = dataset.data["input_text"].tolist()[:5]
-    references = dataset.data["target_text"].tolist()[:5]
+    summaries = dataset.data["input_text"].tolist()
+    references = dataset.data["target_text"].tolist()
 
     model.eval()  # turn on eval mode
 
