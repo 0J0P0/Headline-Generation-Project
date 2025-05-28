@@ -1,21 +1,21 @@
-from transformers import (
-    BartTokenizer,
-    BartForConditionalGeneration,
-    PegasusTokenizer,
-    PegasusForConditionalGeneration,
-)
-
+import torch
+from torch.utils.data import DataLoader
 from configs.settings import MODEL_DIR, PROCESSED_DATA_DIR
 from src.data_loader import HeadlineDataset, MAX_INPUT_LEN, MAX_TARGET_LEN
-from nltk.translate import meteor
+from src.model_loader import load_bart_model
+from nltk.translate.meteor_score import meteor_score
 from rouge_score import rouge
-from bert_score import bert_score
+from bert_score import score as bert_score
+
+BATCH_SIZE = 32
 
 
 def evaluate():
-    model = BartForConditionalGeneration.from_pretrained(MODEL_DIR / "/bart/")
-    tokenizer = BartTokenizer.from_pretrained(MODEL_DIR / "/bart/")
+    tokenizer, model = load_bart_model()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(device)
 
+    # dataset = HeadlineDataset(MODEL_DIR / "val.csv", tokenizer)
     dataset = HeadlineDataset(PROCESSED_DATA_DIR / "val.csv", tokenizer)
     summaries = dataset.data["input_text"].tolist()
     references = dataset.data["target_text"].tolist()
@@ -31,6 +31,13 @@ def evaluate():
         pred = tokenizer.decode(output_ids[0], skip_special_tokens=True)
         predictions.append(pred)
 
+    # dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
+    # for data in dataloader:
+    #     input_ids = data["input_ids"].to(device)
+    #     output_ids = model.generate(**input_ids, max_length=MAX_TARGET_LEN)
+    #     pred = tokenizer.decode(output_ids[0], skip_special_tokens=True)
+    #     predictions.append(pred)
+
     # METEOR
     total_score = 0
 
@@ -41,7 +48,7 @@ def evaluate():
 
     # Calculation
     for pred, refs in zip(predictions, references):
-        total_score += meteor(refs, pred)  # METEOR
+        total_score += meteor_score(refs, pred)  # METEOR
 
         scores = scorer.score(refs, pred)  # ROUGE
         total_rouge1 += scores["rouge1"].fmeasure
@@ -60,3 +67,7 @@ def evaluate():
     print(f"Average BERTScore Precision: {P.mean().item():.4f}")
     print(f"Average BERTScore Recall: {R.mean().item():.4f}")
     print(f"Average BERTScore F1: {F1.mean().item():.4f}")
+
+
+if __name__ == "__main__":
+    evaluate()
