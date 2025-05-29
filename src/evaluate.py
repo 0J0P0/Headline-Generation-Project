@@ -6,21 +6,22 @@ from transformers import (
 )
 
 import torch
-from configs.settings import MODEL_DIR
+import sys
+import random
+from configs.settings import MODEL_DIR, PROCESSED_DATA_DIR
 from src.data_loader import HeadlineDataset, MAX_INPUT_LEN, MAX_TARGET_LEN
+from src.model_loader import load_bart_model
 from nltk.translate.meteor_score import meteor_score
 from nltk.tokenize import word_tokenize
 from rouge_score import rouge_scorer
 from bert_score import score as bert_score
 
 
-def evaluate():
-    tokenizer = BartTokenizer.from_pretrained(MODEL_DIR / "bart/")
-    model = BartForConditionalGeneration.from_pretrained(MODEL_DIR / "bart/")
+def evaluate(tokenizer, model):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
 
-    dataset = HeadlineDataset(MODEL_DIR / "val.csv", tokenizer)
+    dataset = HeadlineDataset(PROCESSED_DATA_DIR / "val.csv", tokenizer)
     summaries = dataset.data["input_text"].tolist()
     references = dataset.data["target_text"].tolist()
 
@@ -37,6 +38,13 @@ def evaluate():
         output_ids = model.generate(input_ids=input_ids, max_length=MAX_TARGET_LEN)
         pred = tokenizer.decode(output_ids[0], skip_special_tokens=True)
         predictions.append(pred)
+
+    # Sneak peek
+    rand_preds = random.choices(predictions, k=10)
+    rand_refs = random.choices(references, k=10)
+    # for pred, ref in zip(rand_preds, rand_refs):
+    for pred, ref in zip(predictions[:10], references[:10]):
+        print(f"Prediction: {pred}, Reference : {ref}")
 
     # METEOR
     total_score = 0
@@ -72,4 +80,13 @@ def evaluate():
 
 
 if __name__ == "__main__":
-    evaluate()
+    args = sys.argv[1:]
+    if args[0] == "-pre":
+        print("Evaluating pre-trained model...")
+        tokenizer, model = load_bart_model()
+        evaluate(tokenizer, model)
+    else:
+        print("Evaluating trained model...")
+        tokenizer = BartTokenizer.from_pretrained(MODEL_DIR / "bart/")
+        model = BartForConditionalGeneration.from_pretrained(MODEL_DIR / "bart/")
+        evaluate(tokenizer, model)
