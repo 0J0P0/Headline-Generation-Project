@@ -6,9 +6,8 @@ from transformers import (
 )
 
 import torch
-from configs.settings import MODEL_DIR, PROCESSED_DATA_DIR
+from configs.settings import MODEL_DIR
 from src.data_loader import HeadlineDataset, MAX_INPUT_LEN, MAX_TARGET_LEN
-from src.model_loader import load_bart_model
 from nltk.translate.meteor_score import meteor_score
 from nltk.tokenize import word_tokenize
 from rouge_score import rouge_scorer
@@ -16,14 +15,12 @@ from bert_score import score as bert_score
 
 
 def evaluate():
-    # tokenizer = BartTokenizer.from_pretrained(PROCESSED_DATA_DIR/"bart/")
-    # model = BartForConditionalGeneration.from_pretrained(PROCESSED_DATA_DIR/"bart/")
-    tokenizer, model = load_bart_model()
+    tokenizer = BartTokenizer.from_pretrained(MODEL_DIR / "bart/")
+    model = BartForConditionalGeneration.from_pretrained(MODEL_DIR / "bart/")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
 
-    # dataset = HeadlineDataset(MODEL_DIR / "val.csv", tokenizer)
-    dataset = HeadlineDataset(PROCESSED_DATA_DIR / "val.csv", tokenizer)
+    dataset = HeadlineDataset(MODEL_DIR / "val.csv", tokenizer)
     summaries = dataset.data["input_text"].tolist()
     references = dataset.data["target_text"].tolist()
 
