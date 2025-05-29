@@ -81,12 +81,24 @@ def evaluate(tokenizer, model):
 
 if __name__ == "__main__":
     args = sys.argv[1:]
-    if args[0] == "-pre":
-        print("Evaluating pre-trained model...")
+    if len(args) == 1 and args[0] == "-pre":
+        print("Evaluating pre-trained BART model...")
         tokenizer, model = load_bart_model()
         evaluate(tokenizer, model)
+    elif len(args) == 2 and args[1] == "-peg":
+        if args[0] == "-pre":
+            print("Evaluating pre-trained Pegasus model...")
+            tokenizer, model = load_bart_model()
+            evaluate(tokenizer, model)
+        else:
+            print("Evaluating trained Pegasus model...")
+            tokenizer = PegasusTokenizer.from_pretrained(MODEL_DIR / "pegasus/")
+            model = PegasusForConditionalGeneration.from_pretrained(
+                MODEL_DIR / "pegasus/"
+            )
+            evaluate(tokenizer, model)
     else:
-        print("Evaluating trained model...")
+        print("Evaluating trained BART model...")
         tokenizer = BartTokenizer.from_pretrained(MODEL_DIR / "bart/")
         model = BartForConditionalGeneration.from_pretrained(MODEL_DIR / "bart/")
         evaluate(tokenizer, model)
