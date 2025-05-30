@@ -7,10 +7,9 @@ from transformers import (
 
 import torch
 import sys
-import random
 from configs.settings import MODEL_DIR, PROCESSED_DATA_DIR
 from src.data_loader import HeadlineDataset, MAX_INPUT_LEN, MAX_TARGET_LEN
-from src.model_loader import load_bart_model
+from src.model_loader import load_bart_model, load_pegasus_model
 from nltk.translate.meteor_score import meteor_score
 from nltk.tokenize import word_tokenize
 from rouge_score import rouge_scorer
@@ -39,13 +38,6 @@ def evaluate(tokenizer, model):
         pred = tokenizer.decode(output_ids[0], skip_special_tokens=True)
         predictions.append(pred)
 
-    # Sneak peek
-    rand_preds = random.choices(predictions, k=10)
-    rand_refs = random.choices(references, k=10)
-    # for pred, ref in zip(rand_preds, rand_refs):
-    for pred, ref in zip(predictions[:10], references[:10]):
-        print(f"Prediction: {pred}, Reference : {ref}")
-
     # METEOR
     total_score = 0
 
@@ -54,10 +46,25 @@ def evaluate(tokenizer, model):
     total_rougeL = 0  # Longest Common Subsequence
     scorer = rouge_scorer.RougeScorer(["rouge1", "rouge2", "rougeL"], use_stemmer=True)
 
-    # Calculation
-    for pred, refs in zip(predictions, references):
+    # Sneak peek
+    for pred, refs in zip(predictions[:10], references[:10]):
+        print(f"Prediction: {pred}, Reference : {refs}")
         refs_tokens = word_tokenize(refs.lower())
         pred_tokens = word_tokenize(pred.lower())
+        met_score = meteor_score([pred_tokens], refs_tokens)
+        print(f"Meteor score: {met_score}")
+
+        scores = scorer.score(refs, pred)  # ROUGE
+        rouge1 = scores["rouge1"].fmeasure
+        rougeL = scores["rougeL"].fmeasure
+        print(f"Rouge1 score: {rouge1}")
+        print(f"RougeL score: {rougeL}")
+
+        _, _, bscore = bert_score([pred], [refs], lang="en", verbose=True)
+        print(f"BERTScore F1: {bscore.item():.4f}")
+
+    # Calculation
+    for pred, refs in zip(predictions, references):
         total_score += meteor_score([pred_tokens], refs_tokens)  # METEOR
 
         scores = scorer.score(refs, pred)  # ROUGE
@@ -81,24 +88,22 @@ def evaluate(tokenizer, model):
 
 if __name__ == "__main__":
     args = sys.argv[1:]
+    print(args)
     if len(args) == 1 and args[0] == "-pre":
         print("Evaluating pre-trained BART model...")
         tokenizer, model = load_bart_model()
-        evaluate(tokenizer, model)
-    elif len(args) == 2 and args[1] == "-peg":
-        if args[0] == "-pre":
+    elif "-peg" in args:
+        if "-pre" in args:
             print("Evaluating pre-trained Pegasus model...")
-            tokenizer, model = load_bart_model()
-            evaluate(tokenizer, model)
+            tokenizer, model = load_pegasus_model()
         else:
             print("Evaluating trained Pegasus model...")
             tokenizer = PegasusTokenizer.from_pretrained(MODEL_DIR / "pegasus/")
             model = PegasusForConditionalGeneration.from_pretrained(
                 MODEL_DIR / "pegasus/"
             )
-            evaluate(tokenizer, model)
     else:
         print("Evaluating trained BART model...")
         tokenizer = BartTokenizer.from_pretrained(MODEL_DIR / "bart/")
         model = BartForConditionalGeneration.from_pretrained(MODEL_DIR / "bart/")
-        evaluate(tokenizer, model)
+    evaluate(tokenizer, model)
