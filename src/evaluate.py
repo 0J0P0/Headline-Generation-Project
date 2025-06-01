@@ -17,6 +17,13 @@ from bert_score import score as bert_score
 
 
 def evaluate(tokenizer, model):
+    """
+    Evaluate the model on the validation dataset and print various metrics.
+    
+    Args:
+        tokenizer: The tokenizer for the model.
+        model: The model to evaluate.
+    """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
 
@@ -24,7 +31,7 @@ def evaluate(tokenizer, model):
     summaries = dataset.data["input_text"].tolist()
     references = dataset.data["target_text"].tolist()
 
-    model.eval()  # turn on eval mode
+    model.eval()
 
     predictions = []
     for summary in summaries:
@@ -38,15 +45,12 @@ def evaluate(tokenizer, model):
         pred = tokenizer.decode(output_ids[0], skip_special_tokens=True)
         predictions.append(pred)
 
-    # METEOR
     total_score = 0
 
-    # ROUGE (measures f1)
     total_rouge1 = 0  # unigram
     total_rougeL = 0  # Longest Common Subsequence
     scorer = rouge_scorer.RougeScorer(["rouge1", "rouge2", "rougeL"], use_stemmer=True)
 
-    # Sneak peek
     for pred, refs in zip(predictions[:10], references[:10]):
         print(f"Prediction: {pred}, Reference : {refs}")
         refs_tokens = word_tokenize(refs.lower())
@@ -54,7 +58,7 @@ def evaluate(tokenizer, model):
         met_score = meteor_score([pred_tokens], refs_tokens)
         print(f"Meteor score: {met_score}")
 
-        scores = scorer.score(refs, pred)  # ROUGE
+        scores = scorer.score(refs, pred)
         rouge1 = scores["rouge1"].fmeasure
         rougeL = scores["rougeL"].fmeasure
         print(f"Rouge1 score: {rouge1}")
@@ -65,9 +69,9 @@ def evaluate(tokenizer, model):
 
     # Calculation
     for pred, refs in zip(predictions, references):
-        total_score += meteor_score([pred_tokens], refs_tokens)  # METEOR
+        total_score += meteor_score([pred_tokens], refs_tokens)
 
-        scores = scorer.score(refs, pred)  # ROUGE
+        scores = scorer.score(refs, pred)
         total_rouge1 += scores["rouge1"].fmeasure
         total_rougeL += scores["rougeL"].fmeasure
 
