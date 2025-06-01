@@ -1,13 +1,6 @@
-from transformers import (
-    BartTokenizer,
-    BartForConditionalGeneration,
-    PegasusTokenizer,
-    PegasusForConditionalGeneration,
-)
-
 import torch
-import sys
-from configs.settings import MODEL_DIR, PROCESSED_DATA_DIR
+from sys import argv
+from configs.settings import PROCESSED_DATA_DIR
 from src.data_loader import HeadlineDataset, MAX_INPUT_LEN, MAX_TARGET_LEN
 from src.model_loader import load_bart_model, load_pegasus_model
 from nltk.translate.meteor_score import meteor_score
@@ -84,30 +77,29 @@ def evaluate(tokenizer, model):
     print(f"Average ROUGE-1 F1: {avg_rouge1:.4f}")
     print(f"Average ROUGE-L F1: {avg_rougeL:.4f}")
 
-    P, R, F1 = bert_score(predictions, references, lang="en", verbose=True)  # BERT
+    P, R, F1 = bert_score(predictions, references, lang="en", verbose=True)
     print(f"Average BERTScore Precision: {P.mean().item():.4f}")
     print(f"Average BERTScore Recall: {R.mean().item():.4f}")
     print(f"Average BERTScore F1: {F1.mean().item():.4f}")
 
 
 if __name__ == "__main__":
-    args = sys.argv[1:]
-    print(args)
-    if len(args) == 1 and args[0] == "-pre":
+    if len(argv) != 2:
+        print("Usage: python train.py <model_type>")
+        print("Model type should be 'bart' or 'pegasus'.")
+        exit(1)
+
+    model_type = argv[1].lower()
+
+    if model_type not in ["bart", "pegasus"]:
+        print("Invalid model type. Choose 'bart' or 'pegasus'.")
+        exit(1)
+
+    if "bart" in argv:
         print("Evaluating pre-trained BART model...")
         tokenizer, model = load_bart_model()
-    elif "-peg" in args:
-        if "-pre" in args:
-            print("Evaluating pre-trained Pegasus model...")
-            tokenizer, model = load_pegasus_model()
-        else:
-            print("Evaluating trained Pegasus model...")
-            tokenizer = PegasusTokenizer.from_pretrained(MODEL_DIR / "pegasus/")
-            model = PegasusForConditionalGeneration.from_pretrained(
-                MODEL_DIR / "pegasus/"
-            )
-    else:
-        print("Evaluating trained BART model...")
-        tokenizer = BartTokenizer.from_pretrained(MODEL_DIR / "bart/")
-        model = BartForConditionalGeneration.from_pretrained(MODEL_DIR / "bart/")
+    elif "-pegasus" in argv:
+        print("Evaluating pre-trained Pegasus model...")
+        tokenizer, model = load_pegasus_model()
+    
     evaluate(tokenizer, model)
