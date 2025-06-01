@@ -4,7 +4,7 @@ import torch
 from configs.settings import MODEL_DIR
 
 
-def generate_headline(text):
+def generate_headline(text, path):
     """
     Generate a headline for the given text using a pre-trained BART model.
     Args:
@@ -12,8 +12,8 @@ def generate_headline(text):
         Returns:
         str: The generated headline.
     """
-    tokenizer = BartTokenizer.from_pretrained(MODEL_DIR / "bart/")
-    model = BartForConditionalGeneration.from_pretrained(MODEL_DIR / "bart/")
+    tokenizer = BartTokenizer.from_pretrained(path)
+    model = BartForConditionalGeneration.from_pretrained(path)
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
@@ -35,3 +35,7 @@ def generate_headline(text):
     headline = tokenizer.decode(outputs[0], skip_special_tokens=True)
     
     return headline
+if __name__ =="__main__":
+    text= "The quick brown fox jumps over the lazy dog. This is a test sentence to generate a headline."
+    title = generate_headline(text)
+    print(f"Generated Movie Title: {title}")
