@@ -5,16 +5,20 @@ from transformers import (
     PegasusForConditionalGeneration,
 )
 
+import torch
+import sys
 from configs.settings import MODEL_DIR, PROCESSED_DATA_DIR
 from src.data_loader import HeadlineDataset, MAX_INPUT_LEN, MAX_TARGET_LEN
-from nltk.translate import meteor
-from rouge_score import rouge
-from bert_score import bert_score
+from src.model_loader import load_bart_model, load_pegasus_model
+from nltk.translate.meteor_score import meteor_score
+from nltk.tokenize import word_tokenize
+from rouge_score import rouge_scorer
+from bert_score import score as bert_score
 
 
-def evaluate():
-    model = BartForConditionalGeneration.from_pretrained(MODEL_DIR / "/bart/")
-    tokenizer = BartTokenizer.from_pretrained(MODEL_DIR / "/bart/")
+def evaluate(tokenizer, model):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(device)
 
     dataset = HeadlineDataset(PROCESSED_DATA_DIR / "val.csv", tokenizer)
     summaries = dataset.data["input_text"].tolist()
@@ -25,9 +29,12 @@ def evaluate():
     predictions = []
     for summary in summaries:
         inputs = tokenizer(
-            summary, return_tensors="pt", truncation=True, max_length=MAX_INPUT_LEN
-        )
-        output_ids = model.generate(**inputs, max_length=MAX_TARGET_LEN)
+            summary, return_tensors="pt", max_length=MAX_INPUT_LEN, truncation=True
+        ).to(device)
+        inputs = {k: v.to(device) for k, v in inputs.items()}
+        input_ids = inputs["input_ids"]
+
+        output_ids = model.generate(input_ids=input_ids, max_length=MAX_TARGET_LEN)
         pred = tokenizer.decode(output_ids[0], skip_special_tokens=True)
         predictions.append(pred)
 
@@ -37,11 +44,28 @@ def evaluate():
     # ROUGE (measures f1)
     total_rouge1 = 0  # unigram
     total_rougeL = 0  # Longest Common Subsequence
-    scorer = rouge.RougeScorer(["rouge1", "rouge2", "rougeL"], use_stemmer=True)
+    scorer = rouge_scorer.RougeScorer(["rouge1", "rouge2", "rougeL"], use_stemmer=True)
+
+    # Sneak peek
+    for pred, refs in zip(predictions[:10], references[:10]):
+        print(f"Prediction: {pred}, Reference : {refs}")
+        refs_tokens = word_tokenize(refs.lower())
+        pred_tokens = word_tokenize(pred.lower())
+        met_score = meteor_score([pred_tokens], refs_tokens)
+        print(f"Meteor score: {met_score}")
+
+        scores = scorer.score(refs, pred)  # ROUGE
+        rouge1 = scores["rouge1"].fmeasure
+        rougeL = scores["rougeL"].fmeasure
+        print(f"Rouge1 score: {rouge1}")
+        print(f"RougeL score: {rougeL}")
+
+        _, _, bscore = bert_score([pred], [refs], lang="en", verbose=True)
+        print(f"BERTScore F1: {bscore.item():.4f}")
 
     # Calculation
     for pred, refs in zip(predictions, references):
-        total_score += meteor(refs, pred)  # METEOR
+        total_score += meteor_score([pred_tokens], refs_tokens)  # METEOR
 
         scores = scorer.score(refs, pred)  # ROUGE
         total_rouge1 += scores["rouge1"].fmeasure
@@ -60,3 +84,26 @@ def evaluate():
     print(f"Average BERTScore Precision: {P.mean().item():.4f}")
     print(f"Average BERTScore Recall: {R.mean().item():.4f}")
     print(f"Average BERTScore F1: {F1.mean().item():.4f}")
+
+
+if __name__ == "__main__":
+    args = sys.argv[1:]
+    print(args)
+    if len(args) == 1 and args[0] == "-pre":
+        print("Evaluating pre-trained BART model...")
+        tokenizer, model = load_bart_model()
+    elif "-peg" in args:
+        if "-pre" in args:
+            print("Evaluating pre-trained Pegasus model...")
+            tokenizer, model = load_pegasus_model()
+        else:
+            print("Evaluating trained Pegasus model...")
+            tokenizer = PegasusTokenizer.from_pretrained(MODEL_DIR / "pegasus/")
+            model = PegasusForConditionalGeneration.from_pretrained(
+                MODEL_DIR / "pegasus/"
+            )
+    else:
+        print("Evaluating trained BART model...")
+        tokenizer = BartTokenizer.from_pretrained(MODEL_DIR / "bart/")
+        model = BartForConditionalGeneration.from_pretrained(MODEL_DIR / "bart/")
+    evaluate(tokenizer, model)
