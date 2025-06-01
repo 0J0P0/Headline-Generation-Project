@@ -71,4 +71,4 @@ if __name__ == "__main__":
         print("Invalid model type. Choose 'bart' or 'pegasus'.")
         exit(1)
     
-    train()
+    train(model_type)
